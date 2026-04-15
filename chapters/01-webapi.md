@@ -1,4 +1,4 @@
-# 第1章：WebAPIの基本
+ # 第1章：WebAPIの基本
 
 > 執筆者：（氏名）内村 隼輔
 > 最終更新：2026/04/10
@@ -279,7 +279,7 @@ var body: some View {
 |------|------|--------|
 | 例：`Codable` | JSONデータとSwiftの構造体を相互変換するプロトコル | `struct Song: Codable { ... }` |
 | 例：`async/await` | 非同期処理を同期的に書ける構文 | `let data = try await URLSession.shared.data(from: url)` |
-| | | |
+| `Task` | 同期->非同期処理を開始するための構造体| Task{ await searchMusic() } |
 | | | |
 | | | |
 
@@ -288,26 +288,35 @@ var body: some View {
 （模範コードを改変して試したことを書く）
 
 **実験1：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：ContentUnavailableViewをトレイリングクロージャーで書く
+- 結果：正常に動作した
+- わかったこと：クロージャーはラムダ式のようなものだと再確認した
 
 **実験2：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：SongRowのAsyncImageのクロージャーの引数を$0で書く
+- 結果：正常に動作した
+- わかったこと：クロージャーの引数を$0で書けはするが、可読性が悪化するため、名前をつけた方が良いなと感じた
 
 ## AIに聞いて特に理解が深まった質問 TOP3
 
-1. **質問：**
-   **得られた理解：**
+1. **質問：** async awaitについて解説して
+   **得られた理解：** asyncはこの関数は非同期であることを示し、awaitは非同期処理の完了を待つことを示すキーワードである
 
-2. **質問：**
-   **得られた理解：**
+2. **質問：** ContentUnavailableViewって何
+   **得られた理解：** コンテンツが表示できないことを示すSwiftUIフレームワークに含まれているビュー 
 
-3. **質問：**
-   **得られた理解：**
+3. **質問：** struct Song: Codable, Identifiable {
+    let trackId: Int
+    let trackName: String
+    let artistName: String
+    let artworkUrl100: String
+    let previewUrl: String?
+
+    var id: Int { trackId }
+}
+のidの書き方は何
+   **得られた理解：** iTunesAPIがtrackIdを返すがIdentifiableはidプロパティを要求するがCodableでデコードしたいため、idをcomputed propertyにしてtrackIdを返すようにしている
 
 ## この章のまとめ
 
-（この章で学んだ最も重要なことを、未来の自分が読み返したときに役立つように書く）
+async await構文の読み方やそれにあたってTaskなどの構造体の意味を知ることができた
