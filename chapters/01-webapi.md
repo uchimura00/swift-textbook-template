@@ -320,3 +320,12 @@ var body: some View {
 ## この章のまとめ
 
 async await構文の読み方やそれにあたってTaskなどの構造体の意味を知ることができた
+
+## 応用編
+
+**基本編との違い:** MVだったのがMVVMになっている。resultCount追加してるけど使われてない?
+**MVVMとは何か:** Model View ViewModelの略。ViewModelはViewとModelの橋渡しのような役割をしており、View - ViewModel - Modelの形になっている。ViewはViewModelのイベントを呼び出し、ViewModelはそのイベントを受け取って,Modelの状態を変更している。そして変更された状態をViewModelが受け取り、Viewがその状態を監視している。これによって単方向データフロー(UDF)が成立している。ただしSwiftUIにおいてはViewModelの存在はAndroidとは違い、ライフサイクルの考慮などがないのでMVでもいいのでは...?と思っている。
+**エラーハンドリング:** エラーハンドリングをviewModelがやっている。エラー自信がメッセージを持つんだと思った。
+**もしこう書かなかったら:** 全然問題ないと思う。これぐらい小規模なら基本編のAPI通信をModel側でやるようにしてMVで書いてもいいと思う。
+**AIとのやりとりで学んだこと:** ViewBuilderは複数の異なるViewを1つのView型にまとめることができる。
+
