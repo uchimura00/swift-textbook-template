@@ -193,13 +193,13 @@ PhotosPicker(selection: $selectedItem, matching: .images) {
 ```
 
 **何をしているか：**
-（この部分が果たしている役割を説明する）
+selectionで選択した写真のBinding,matchingで写真か動画のフィルタリングをしている
 
 **なぜこう書くのか：**
-（別の書き方ではなく、この書き方が選ばれている理由を説明する）
+PhotosUIが提供しているブラックボックス的なAPIだから、選択できることがこの二つぐらいしかない
 
 **もしこう書かなかったら：**
-（この部分を省略したり変えたりすると何が起きるか。実際に試した結果があればここに書く）
+PHPickerViewControllerを使わなければならなくなり、UIViewControllerRepresentable + Coordinator + Delegateが必要になった結果、コード量が増大する。
 
 ---
 
@@ -221,10 +221,14 @@ func loadImage(from item: PhotosPickerItem?) async {
 ```
 
 **何をしているか：**
+PhotosPickerで選択されたPhotosPickerItem(選択された写真)をImageに変換をしている
+if let data = try await item.loadTransferable(type: Data.self)で参照から画像バイナリを取得し、let uiImage = UIImage(data: data)でUIImageでバイナリからUIImageに変換、selectedImage = Image(uiImage: uiImage)でUIImageをSwiftUIのImageに変換している。
 
 **なぜこう書くのか：**
+特に他の書き方はないと思う。1機能で関数の切り出しをするべきぐらい。
 
 **もしこう書かなかったら：**
+onChangeに直接書いたら可読性が下がる
 
 ---
 
@@ -250,10 +254,15 @@ struct CameraView: UIViewControllerRepresentable {
 ```
 
 **何をしているか：**
+UIKitのUIImagePickerController（カメラ）をSwiftUIで使えるようにブリッジしている構造体
+makeUIViewControllerでUIImagePickerController を作り、.cameraを指定してカメラを起動するよう設定している
 
 **なぜこう書くのか：**
+SwiftUIネイティブのカメラコンポーネントAPIがないから。
+SwiftUI側の@Bindingや@Stateが変わったとき、それをUIKitのUIImagePickerControllerに反映する必要がないから空にしている。
 
 **もしこう書かなかったら：**
+これ以外の書き方はおそらくない。
 
 ---
 
@@ -284,10 +293,13 @@ class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationContro
 ```
 
 **何をしているか：**
+UIKitのdelegate（撮影完了・キャンセル）を受け取って、SwiftUI 側に結果を渡す橋渡し役。撮影が完了したらinfoから画像を取り出してparent.capturedImageに渡し、カメラを閉じる。キャンセルされたら画像を渡さずに閉じる。
 
 **なぜこう書くのか：**
+UIKitのdelegateパターンはDelegateプロトコルに準拠したオブジェクトにコールバックを送る仕組み。DelegateプロトコルはNSObjectProtocolへの準拠を要求しており、それには実質的にNSObjectクラスの継承が必要なため、構造体では実現できない。そのためクラスであるCoordinat…UIKitのdelegateパターンはDelegateプロトコルに準拠したオブジェクトにコールバックを送る仕組み。DelegateプロトコルはNSObjectProtocolへの準拠を要求しており、それには実質的にNSObjectクラスの継承が必要なため、構造体では実現できない。そのためクラスであるCoordinatorを作成してdelegateの役割を担わせている。カメラの場合はUIKit側のイベント（撮影完了・キャンセル）をSwiftUIに伝える必要があるため、makeCoordinatorを実装してこのような書き方になる。
 
 **もしこう書かなかったら：**
+こう書くしかないと思う。
 
 ---
 
@@ -299,7 +311,7 @@ class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationContro
 |------|------|--------|
 | 例：`PhotosPicker` | フォトライブラリから画像を選択するコンポーネント | `PhotosPicker(selection: $selectedItem, matching: .images)` |
 | 例：`UIImagePickerController` | カメラまたはフォトライブラリにアクセスするUIKitコンポーネント | `picker.sourceType = .camera` |
-| | | |
+| `UIViewControllerRepresentable` | UIKitのUIViewControllerをSwiftUIのViewとして使えるようにするためのプロトコル。SwiftUIにない機能（カメラなど）を UIKitから借りてくるときに使います。このプロトコルに準拠すると、SwiftUIが内部でUIViewControllerのライフサイクル（生成・更新・破棄）を管理できる。 | `struct CameraView: UIViewControllerRepresentable` |
 | | | |
 | | | |
 
@@ -308,9 +320,9 @@ class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationContro
 （模範コードを改変して試したことを書く）
 
 **実験1：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：importのPhotosUIを消す
+- 結果：PhotosPickerを呼び出している箇所でコンパイルエラーが発生した
+- わかったこと：PhotosPickerがPthotosUIのAPIであることがわかった
 
 **実験2：**
 - やったこと：
@@ -319,15 +331,17 @@ class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationContro
 
 ## AIに聞いて特に理解が深まった質問 TOP3
 
-1. **質問：**
-   **得られた理解：**
+1. **質問：**  SwiftUIの構造体がdelegateになれないのはなぜか？
 
-2. **質問：**
-   **得られた理解：**
+   **得られた理解：** DelegateプロトコルがNSObjectProtocolへの準拠を要求しており、クラスの継承が必要なため構造体では不可。だからクラスであるCoordinatorが必要。
 
-3. **質問：**
-   **得られた理解：**
+3. **質問：** updateUIViewControllerとCoordinatorの違いは何
+
+   **得られた理解：** 方向が逆。updateUIViewControllerはSwiftUI→UIKit、CoordinatorはUIKit→SwiftUI
+
+4. **質問：**  PhotosPickerがあるのにカメラでUIViewControllerRepresentableを使うのはなぜ
+
+   **得られた理解：** SwiftUIにカメラのネイティブAPIが存在しないため、UIKitをブリッジするしか方法がない。
 
 ## この章のまとめ
-
-（この章で学んだ最も重要なことを、未来の自分が読み返したときに役立つように書く）
+フォトライブラリはPhotosPicker（PhotosUI）で数行で済むが、カメラはSwiftUIにネイティブAPIがないためUIKitのUIImagePickerControllerをUIViewControllerRepresentableでブリッジする必要がある。そのブリッジにはCoordinatorパターンが不可欠で、UIKitのdelegateイベントをSwiftUIに橋渡しする役割を担う。
