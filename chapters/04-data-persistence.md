@@ -281,7 +281,26 @@ class Memo {
 ### データの追加・削除（modelContext）
 
 ```swift
-// 該当部分のコードを抜粋して貼る
+// ── 追加（MemoAddView 内の保存ボタン）──
+@Environment(\.modelContext) private var modelContext
+ 
+Button("保存") {
+    let memo = Memo(title: title, content: content)
+    modelContext.insert(memo)
+    dismiss()
+}
+.disabled(title.isEmpty)
+ 
+// ── 削除（ContentView 内）──
+func deleteMemos(at offsets: IndexSet) {
+    for index in offsets {
+        let memo = displayedMemos[index]
+        modelContext.delete(memo)
+    }
+}
+ 
+// ── リストのスワイプ削除（ContentView 内）──
+.onDelete(perform: deleteMemos)
 ```
 
 **何をしているか：**
@@ -295,7 +314,14 @@ class Memo {
 ### @Queryによるデータ取得
 
 ```swift
-// 該当部分のコードを抜粋して貼る
+@Query(sort: \Memo.createdAt, order: .reverse) private var memos: [Memo]
+
+var displayedMemos: [Memo] {
+    if sortByFavorite {
+         return memos.sorted { $0.isFavorite && !$1.isFavorite }
+    }
+    return memos
+}
 ```
 
 **何をしているか：**
@@ -309,7 +335,31 @@ class Memo {
 ### @AppStorageによる設定保存
 
 ```swift
-// 該当部分のコードを抜粋して貼る
+// ── 宣言（ContentView 内）──
+@AppStorage("sortByFavorite") private var sortByFavorite: Bool = false
+@AppStorage("userName") private var userName: String = ""
+ 
+// ── 使用例①：ナビゲーションタイトルへの反映 ──
+.navigationTitle(userName.isEmpty ? "メモ帳" : "\(userName)のメモ帳")
+ 
+// ── 使用例②：SettingsView で値を変更 ──
+struct SettingsView: View {
+    @Binding var userName: String
+    @Binding var sortByFavorite: Bool
+ 
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("ユーザー設定") {
+                    TextField("あなたの名前", text: $userName)
+                }
+                Section("表示設定") {
+                    Toggle("お気に入りを上に表示", isOn: $sortByFavorite)
+                }
+            }
+        }
+    }
+}
 ```
 
 **何をしているか：**
