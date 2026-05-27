@@ -373,14 +373,15 @@ struct SettingsView: View {
 ```
 
 **何をしているか：**
+@AppStorageがついたプロパティは値をUserDefaultsに自動保存している。userNameなどのプロパティを@Bindingで渡すことで変更が即座にAppStorageに反映される。
 
 **なぜこう書くのか：**
+UserDefaultsを使用するには読み書きをするようのボイラープレートコードを記述する必要があり、それらを@AppStorageを使うことで1行で済むようになるため。
 
 **もしこう書かなかったら：**
+ボイラープレートコードを値の永続化が必要になるたびに記述しなければならなくなり、コードの可読性やバグの可能性が上がる。
 
 ---
-
-（必要に応じてセクションを増やす）
 
 ## 新しく学んだSwiftの文法・API
 
@@ -388,7 +389,7 @@ struct SettingsView: View {
 |------|------|--------|
 | 例：`@Model` | SwiftDataでオブジェクトを永続化するためのマクロ | `@Model final class Memo { ... }` |
 | 例：`@Query` | データベースからデータを取得し、変更を自動で反映するプロパティラッパー | `@Query var memos: [Memo]` |
-| | | |
+| @AppStorage | UserDefaultsに値を自動で読み書きするプロパティラッパー | @AppStorage("userName") private var userName: String = "" |
 | | | |
 | | | |
 
@@ -397,26 +398,25 @@ struct SettingsView: View {
 （模範コードを改変して試したことを書く）
 
 **実験1：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：.modelContainer(for: Memo.self)を消す
+- 結果：保存を押しても何も保存されずUIに保存したメモが表示されなくなった
+- わかったこと：modelContainerがDBを作成しVIewに繋ぎ込んでいたことがわかった
 
 **実験2：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：@Query(sort: \Memo.createdAt, order: .reverse) private var memos: [Memo]のorderを.forwardに変更
+- 結果：memosが古い順/昇順になった
+- わかったこと：＠Queryのsortがorderを変えても正しく動くことがわかった
 
 ## AIに聞いて特に理解が深まった質問 TOP3
 
-1. **質問：**
-   **得られた理解：**
+1. **質問：**　SwiftDataは表示用とDB用でmodelを分けずにView層で共通化するのが普通なの?
+   **得られた理解：** 小~中規模だと普通　大規模だと分ける
 
-2. **質問：**
-   **得られた理解：**
+2. **質問：**　@Queryは何をやっているの
+   **得られた理解：** DBから条件に合うデータを取ってきて、常に最新に保つを1行でやってくれるもの
 
-3. **質問：**
-   **得られた理解：**
+3. **質問：** modelContextは何をしているの
+   **得られた理解：** SwiftDataのDBへの窓口。データの追加・削除は全部これを通して行う。
 
 ## この章のまとめ
-
-（この章で学んだ最も重要なことを、未来の自分が読み返したときに役立つように書く）
+SwiftDataを使用したデータの永続化方法をSwiftマクロとプロパティラッパーの理解を通して学んだ。
