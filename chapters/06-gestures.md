@@ -409,7 +409,7 @@ struct TapDemoView: View {
 タップや長押しは〇〇Gestureを使って任意のGestureを実行時に呼び出す処理を記述するため。
 
 **もしこう書かなかったら：**
-これ以外に書き方はない。
+単純なタップ・長押し処理であればonTapGestureやonLongPressGestureが最も簡潔に書ける。gesture()を使った実装も可能だが、コード量が増える。
 
 ---
 
@@ -478,10 +478,13 @@ struct DragDemoView: View {
 ```
 
 **何をしているか：**
+位置と最終位置を@Stateで管理し、カードの位置に指定している。DragGestureでカードをドラッグした際にonChangeが発火し、offsetに最終位置 + ドラッグした量を入れている。カードを離した際にonEndedが発火して、lastOffsetにさっき入力したoffsetを入れている。
 
 **なぜこう書くのか：**
+on〇〇Gestureはドラッグ操作にはないため、gesture内で呼び出す必要がある。
 
 **もしこう書かなかったら：**
+lastOffsetを保持せずにtranslationだけを使用すると、ドラッグを終了して再度ドラッグした際に位置がリセットされてしまい、連続して移動できなくなる。
 
 ---
 
@@ -590,10 +593,13 @@ struct RotateDemoView: View {
 ```
 
 **何をしているか：**
+scaleとlastScaleで拡大率と最終拡大率を@Stateで管理し、ManifyGestureでピンチ操作を検知している。ピンチ中はonChangedで最終拡大率とピンチで拡大した倍率から現在の倍率を求めて、scaleに入れている。またピンチ操作終了時にonEndedで最終倍率に現在の倍率を入れている。
 
 **なぜこう書くのか：**
+ピンチ操作もon〇〇Gestureがないため、gesture内で呼び出している。
 
 **もしこう書かなかったら：**
+ドラッグ操作と同様、最後の位置や倍率を保持していない場合、ジェスチャーを修了した際に前回の状態やジェスチャーで動かした値が保存されず、ジェスチャー操作前の状態に不自然に戻ることになる。
 
 ---
 
@@ -681,10 +687,15 @@ struct CombinedDemoView: View {
 ```
 
 **何をしているか：**
+ドラッグ、ピンチ、回転操作でそれぞれComponentの位置、拡大率、回転角度が変化するをまとめてあるView。回転はangleとlastAngleを@Stateで管理し、simultaneousGesture内のRotateGestureで回転操作を検知している。
+onChangedで発火した現在の回転角度+最後の回転角度を現在の回転角度として,angleに入力し、最後の回転角度にその値としてangleを入れている。
 
 **なぜこう書くのか：**
+ドラッグ、ピンチ操作、回転操作を一つのComponentにまとめるため。また、複数のGestureを同時に発火するためにはsimultaneousGestureが必要。
 
 **もしこう書かなかったら：**
+こう書くしかない
+
 
 ---
 
@@ -696,34 +707,32 @@ struct CombinedDemoView: View {
 |------|------|--------|
 | 例：`DragGesture` | ドラッグジェスチャーを認識するジェスチャーレコグナイザー | `.gesture(DragGesture().onChanged { ... })` |
 | 例：`MagnificationGesture` | ピンチジェスチャーで拡大・縮小を認識 | `.gesture(MagnificationGesture().onChanged { scale in ... })` |
-| | | |
+| RotateGesture() | 回転ジェスチャーを認識するジェスチャーレコグナイザー | RotateGesture().onChanged  |
 | | | |
 | | | |
 
 ## 自分の実験メモ
 
-（模範コードを改変して試したことを書く）
-
 **実験1：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：MagnificationGesture()のonEndedを消す
+- 結果：再度ジェスチャー操作をした際に倍率が1から始まる不自然な挙動が起きた
+- わかったこと：Endedを消すと、最後の拡大率が保存されておらずscaleの1から始まる。
 
 **実験2：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと： ピンチ操作を色んな指の距離でやってみる
+- 結果：拡大率が下がりすぎるとピンチ操作を始める位置を端にすると反応しなくなる。
+- わかったこと：gestureはViewに紐づいているため、ピンチ操作でImageのサイズを小さくするとその外側でgesture操作は反応しなくなる。
 
 ## AIに聞いて特に理解が深まった質問 TOP3
 
-1. **質問：**
-   **得られた理解：**
+1. **質問：** SwiftUIのModifierとJetpack composeのModifierの違い
+   **得られた理解：** SwiftUIはModifierでViewをラップして新しいViewを作る。Jetpack composeはViewの型はそのままでViewに修飾する。
 
-2. **質問：**
-   **得られた理解：**
+2. **質問：** onEndedって何
+   **得られた理解：** 指を離した際に発火するもの
 
-3. **質問：**
-   **得られた理解：**
+3. **質問：** on〇〇Gestureってタップと長押しだけ?
+   **得られた理解：** タップと長押しだけでそれ以外はgesture{ 〇〇Gesture }と書く必要がある
 
 # 応用編
 
@@ -952,10 +961,13 @@ struct SwipeCardView: View {
 ```
 
 **何をしているか：**
+value.translation.widthは指を置いた位置からの相対位置で左に動かすと-,右に動かすと+になるため、swipeThresholdを右スワイプか左スワイプかの判断基準にし、指を置いた位置(value.translation.width　= 0)から右にフリック(+100)してswipeThreshold = 100　以上になると右にeaseOutするように、逆に左にフリック(-100)してswipeThreshold = -100 以上になると左にeaseOutするようにしている。
 
 **なぜこう書くのか：**
+右左に動かしたを判定するためには指を置いた位置から左右に判定する点を置いてそこを超えたらanimationや数値の上昇などを発火するのがわかりやすい。
 
 **もしこう書かなかったら：**
+他に書き方はあると思うが
 
 ---
 
