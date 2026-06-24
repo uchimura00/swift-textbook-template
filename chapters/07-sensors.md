@@ -615,10 +615,13 @@ func startUpdates() {
 ```
 
 **何をしているか：**
+加速度センサー・ジャイロセンサー・磁気センサーの情報をCore Motionが統合し、現在の端末の向きを計算する。取得した値はラジアンで表されており、リアルタイムで更新される。
 
 **なぜこう書くのか：**
+Core Motion が複数のセンサー情報を統合して、扱いやすい姿勢情報（pitch/roll/yaw）を計算してくれるため。
 
 **もしこう書かなかったら：**
+自分で加速度センサーやジャイロセンサーの値を読み取り、姿勢を計算する必要がある。
 
 ---
 
@@ -707,10 +710,17 @@ class ActivityTracker: NSObject, CLLocationManagerDelegate {
 ```
 
 **何をしているか：**
+pedometer = CMPedometerは、
+isPedometerAvailable = CMPedometer.isStepCountingAvailable()で歩数計が使えるかの確認
+pedometer.startUpdates...のself.stepCount = data.numberOfSteps.intValueで歩数の取得・更新
+if let dist = data.distance {self.distance = dist.doubleValue }で推定距離を取得・更新
+stopTracking内のpedometer.stopUpdates()で歩数の更新購読を停止している。
 
 **なぜこう書くのか：**
+このアプリの要件(歩数と移動距離をリアルタイムで取り続ける)を満たすPedometerと等価なAPIはないのは前提として、このAPIでデータ取得の開始/停止をするタイミングの差を考えるなら、このアプリはスタートボタンを押してからストップボタンを押すまでの間の歩数等のデータを取得表示するアプリなので明示的にStopStackingメソッドをUI側から読んでもらい、その中のstopUpdatesで停止する必要がある。
 
 **もしこう書かなかったら：**
+バックグラウンド遷移時に止まるように設計することも可能。ただ、iosの仕様的にバックグラウンド遷移時すぐにアプリがsuspendするからどっちにしても止まるけど。
 
 ---
 
@@ -743,10 +753,18 @@ var speedInKmh: Double {
 ```
 
 **何をしているか：**
+クラス初期化時に
+locationManager.delegate = selfで位置更新イベントを受け取り、
+locationManager.desiredAccuracy = kCLLocationAccuracyBestで位置情報の精度を最高に設定し、
+locationManager.requestWhenInUseAuthorization()でアプリ使用中のみの位置情報許可のリクエストを出している
+func locationManagerでlocation.speed（m/s）から現在速度を取り,0以下を切り捨てている。
+最終的にvar speedInKmh: Double { currentSpeed * 3.6 } でkm/hに変換し、一時間あたりの進んだkmを表示している。
 
 **なぜこう書くのか：**
+同じ要件を他のAPIで代替するのは難しいのは前提として、km/hの求め方は計算済みの値を変えしてもいいが、元のデータはそのままに、今回のkm/hを表示したいUI用に計算プロパティを用意したほうが責務の分離になって良い。
 
 **もしこう書かなかったら：**
+km/hのまま返すと元のデータの再利用性が下がる。またHealthKitから取る方法も考えられるが、データの更新に遅延があるため、このアプリ要件のリアルタイム更新と合わない。よってCoreLocationを使っている。
 
 ---
 
@@ -758,7 +776,7 @@ var speedInKmh: Double {
 |------|------|--------|
 | 例：`CMMotionManager` | 加速度・ジャイロ・気圧などのセンサーデータを取得 | `motionManager.startDeviceMotionUpdates(to: .main) { ... }` |
 | 例：`CMPedometer` | 歩数や歩行距離をカウント | `pedometer.queryPedometerData(from: startDate, to: Date())` |
-| | | |
+| LazyVGrid | レイアウトコンテナで、縦方向にスクロールするグリッド（縦グリッド）を「遅延ロード（lazy）」で表示するためのビューです。大量の要素を効率よく並べたいときに使う | LazyVGrid(columns: [ GridItem(.flexible()), GridItem(.flexible()), ], spacing: 16) |
 | | | |
 | | | |
 
@@ -767,9 +785,9 @@ var speedInKmh: Double {
 （模範コードを改変して試したことを書く）
 
 **実験1：**
-- やったこと：
-- 結果：
-- わかったこと：
+- やったこと：LazyVGridのGridItemを一個減らす
+- 結果：一列4行で表示された
+- わかったこと：GridItemの数=列数だとわかった
 
 **実験2：**
 - やったこと：
@@ -778,15 +796,14 @@ var speedInKmh: Double {
 
 ## AIに聞いて特に理解が深まった質問 TOP3
 
-1. **質問：**
-   **得られた理解：**
+1. **質問：**　m/s を km/h にする理由と係数は？
+   **得られた理解：** CLLocation.speed は m/s。UIは km/h が一般的なので 1 m/s = 3.6 km/h（0.001 km × 3600 h）で変換する。
 
-2. **質問：**
-   **得られた理解：**
+2. **質問：** LazyVGridって何？
+   **得られた理解：** 縦方向の遅延生成グリッド。見える範囲だけ描画し、列は GridItem で柔軟に定義できる。.flexible() で均等割りが簡単。
 
-3. **質問：**
-   **得られた理解：**
+3. **質問：** 歩数とか取るヘルスケアアプリってStopUpdates明示的に読んでるの?
+   **得られた理解：** バックグラウンド遷移時に呼ぶようにして、復帰時に履歴から溜まった歩数等を取るようにしている。
 
 ## この章のまとめ
-
-（この章で学んだ最も重要なことを、未来の自分が読み返したときに役立つように書く）
+CMPedometerとCoreLocationの返すデータやその設定できる項目を理解した。またその値の項目ごとの整形方法(計算式やフォーマット化のやり方)も学ぶことができた。
